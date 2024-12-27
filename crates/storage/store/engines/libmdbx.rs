@@ -120,6 +120,18 @@ impl StoreEngine for Store {
         self.write::<Bodies>(block_hash.into(), block_body.into())
     }
 
+    fn add_block_bodies(
+        &self,
+        block_hashes: Vec<BlockHash>,
+        block_bodies: Vec<BlockBody>,
+    ) -> Result<(), StoreError> {
+        let hashes_and_bodies = block_hashes
+            .into_iter()
+            .zip(block_bodies.into_iter())
+            .map(|(hash, header)| (hash.into(), header.into()));
+        self.write_batch::<Bodies>(hashes_and_bodies)
+    }
+
     fn get_block_body(&self, block_number: BlockNumber) -> Result<Option<BlockBody>, StoreError> {
         if let Some(hash) = self.get_block_hash_by_block_number(block_number)? {
             self.get_block_body_by_hash(hash)

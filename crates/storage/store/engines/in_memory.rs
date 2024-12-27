@@ -120,6 +120,17 @@ impl StoreEngine for Store {
         Ok(())
     }
 
+    fn add_block_bodies(
+        &self,
+        block_hashes: Vec<BlockHash>,
+        block_bodies: Vec<BlockBody>,
+    ) -> Result<(), StoreError> {
+        self.inner()
+            .bodies
+            .extend(block_hashes.into_iter().zip(block_bodies.into_iter()));
+        Ok(())
+    }
+
     fn add_block_number(
         &self,
         block_hash: BlockHash,

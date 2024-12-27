@@ -27,6 +27,14 @@ use ethrex_vm::{evm_state, execute_block, spec_id, EvmState, SpecId};
 ///
 /// Performs pre and post execution validation, and updates the database with the post state.
 pub fn add_block(block: &Block, storage: &Store) -> Result<(), ChainError> {
+    run_block(block, storage)?;
+    store_block(storage, block.clone())?;
+    Ok(())
+}
+
+/// Performs pre and post execution validation, executes the block and updates the database with the post state and receipts.
+/// Doesn't store the block
+fn run_block(block: &Block, storage: &Store) -> Result<(), ChainError> {
     let block_hash = block.header.compute_block_hash();
 
     // Validate if it can be the new head and find the parent
@@ -68,10 +76,8 @@ pub fn add_block(block: &Block, storage: &Store) -> Result<(), ChainError> {
     // Check receipts root matches the one in block header after execution
     validate_receipts_root(&block.header, &receipts)?;
 
-    store_block(storage, block.clone())?;
-    store_receipts(storage, receipts, block_hash)?;
-
-    Ok(())
+    // TODO: Move this to add_block
+    store_receipts(storage, receipts, block_hash)
 }
 
 /// Stores block and header in the database

@@ -176,6 +176,14 @@ impl Store {
         self.engine.add_block_body(block_hash, block_body)
     }
 
+    pub fn add_block_bodies(
+        &self,
+        block_hashes: Vec<BlockHash>,
+        block_bodies: Vec<BlockBody>,
+    ) -> Result<(), StoreError> {
+        self.engine.add_block_bodies(block_hashes, block_bodies)
+    }
+
     pub fn get_block_body(
         &self,
         block_number: BlockNumber,
@@ -528,13 +536,14 @@ impl Store {
         self.engine.get_receipt(block_number, index)
     }
 
+    /// Adds the block and all internal data to the storage
     pub fn add_block(&self, block: Block) -> Result<(), StoreError> {
         // TODO Maybe add both in a single tx?
         let header = block.header;
         let number = header.number;
         let latest_total_difficulty = self.get_latest_total_difficulty()?;
         let block_total_difficulty =
-            latest_total_difficulty.unwrap_or(U256::zero()) + header.difficulty;
+            latest_total_difficulty.unwrap_or_default() + header.difficulty;
         let hash = header.compute_block_hash();
         self.add_transaction_locations(&block.body.transactions, number, hash)?;
         self.add_block_body(hash, block.body)?;
@@ -542,6 +551,24 @@ impl Store {
         self.add_block_number(hash, number)?;
         self.add_block_total_difficulty(hash, block_total_difficulty)?;
         self.update_latest_total_difficulty(block_total_difficulty)
+    }
+
+    /// Adds the blocks and all internal data to the storage using faster batch insertion
+    pub fn add_blocks(&self, blocks: Vec<Block>) -> Result<(), StoreError> {
+        let mut latest_total_difficulty = self.get_latest_total_difficulty()?.unwrap_or_default();
+        let block_hashes: Vec<BlockHash> = blocks.iter().map(|b| b.hash()).collect();
+        // Write per-block data
+        for (hash, block) in block_hashes.iter().zip(blocks.iter()) {
+            latest_total_difficulty += block.header.difficulty;
+            self.add_block_total_difficulty(*hash, latest_total_difficulty)?;
+            self.add_transaction_locations(&block.body.transactions, block.header.number, *hash)?;
+            self.add_block_number(*hash, block.header.number)?;
+        }
+        // Store block
+        let (block_headers, block_bodies) = blocks.into_iter().map(|b| (b.header, b.body)).unzip();
+        self.add_block_headers(block_hashes.clone(), block_headers)?;
+        self.add_block_bodies(block_hashes, block_bodies)?;
+        self.update_latest_total_difficulty(latest_total_difficulty)
     }
 
     pub fn add_initial_state(&self, genesis: Genesis) -> Result<(), StoreError> {

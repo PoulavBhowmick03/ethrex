@@ -247,6 +247,25 @@ impl StoreEngine for RedBStore {
         )
     }
 
+    fn add_block_bodies(
+        &self,
+        block_hashes: Vec<BlockHash>,
+        block_bodies: Vec<BlockBody>,
+    ) -> Result<(), StoreError> {
+        let key_values = block_hashes
+            .into_iter()
+            .zip(block_bodies.into_iter())
+            .enumerate()
+            .map(|(hash, header)| {
+                (
+                    <H256 as Into<BlockHashRLP>>::into(hash),
+                    <BlockBody as Into<BlockBodyRLP>>::into(header),
+                )
+            })
+            .collect();
+        self.write_batch(BLOCK_BODIES_TABLE, key_values)
+    }
+
     fn get_block_body(&self, block_number: BlockNumber) -> Result<Option<BlockBody>, StoreError> {
         if let Some(hash) = self.get_block_hash_by_block_number(block_number)? {
             self.get_block_body_by_hash(hash)

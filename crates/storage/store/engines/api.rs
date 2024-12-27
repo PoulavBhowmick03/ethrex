@@ -37,6 +37,13 @@ pub trait StoreEngine: Debug + Send + Sync + RefUnwindSafe {
         block_body: BlockBody,
     ) -> Result<(), StoreError>;
 
+    /// Add a batch of block bodies
+    fn add_block_bodies(
+        &self,
+        block_hashes: Vec<BlockHash>,
+        block_bodies: Vec<BlockBody>,
+    ) -> Result<(), StoreError>;
+
     /// Obtain canonical block body
     fn get_block_body(&self, block_number: BlockNumber) -> Result<Option<BlockBody>, StoreError>;
 
