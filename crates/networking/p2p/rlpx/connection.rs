@@ -214,11 +214,10 @@ impl<S: AsyncWrite + AsyncRead + std::marker::Unpin> RLPxConnection<S> {
 
                     debug!("Added to table, about to init backend communication");
                     table.init_backend_communication(node_id, peer_channels, capabilities);
+                    drop(table);
                     if let Err(e) = self.handle_peer_conn(sender, receiver).await {
                         error!("Error during RLPx connection: {e}");
                     }
-
-                    table.show_peer_stats();
                 }
             };
         }

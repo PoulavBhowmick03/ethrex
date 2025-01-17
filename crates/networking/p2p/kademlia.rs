@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     discv4::{time_now_unix, FindNodeRequest},
     peer_channels::PeerChannels,
@@ -6,7 +8,7 @@ use crate::{
 };
 use ethrex_core::{H256, H512, U256};
 use sha3::{Digest, Keccak256};
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::{mpsc::UnboundedSender, Mutex};
 use tracing::{debug, info, warn};
 
 pub const MAX_NODES_PER_BUCKET: usize = 16;
@@ -323,25 +325,32 @@ impl KademliaTable {
     /// Returns the channel ends to an active peer connection that supports the given capability
     /// The peer is selected randomly, and doesn't guarantee that the selected peer is not currenlty busy
     /// If no peer is found, this method will try again after 10 seconds
-    pub async fn get_peer_channels(&self, capability: Capability) -> PeerChannels {
+    pub async fn get_peer_channels(
+        table: Arc<Mutex<Self>>,
+        capability: Capability,
+    ) -> PeerChannels {
         tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
         let filter = |peer: &PeerData| -> bool {
             // Search for peers with an active connection that support the required capabilities
             peer.channels.is_some() && peer.supported_capabilities.contains(&capability)
         };
+
+        debug!("[Sync] Before get channel loop!");
         loop {
+            let table = table.lock().await;
             debug!("[Sync] About to search for peers!");
-            self.show_peer_stats();
-            if let Some(channels) = self
+            table.show_peer_stats();
+            if let Some(channels) = table
                 .get_random_peer_with_filter(&filter)
                 .and_then(|peer| peer.channels.clone())
             {
                 return channels;
             }
             info!("[Sync] No peers available, retrying in 1 sec");
-            self.show_peer_stats();
+            table.show_peer_stats();
+            drop(table);
             // This is the unlikely case where we just started the node and don't have peers, wait a bit and try again
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
         }
     }
 
