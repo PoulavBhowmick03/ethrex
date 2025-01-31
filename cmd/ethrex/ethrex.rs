@@ -106,7 +106,7 @@ async fn main() {
         warn!("Using holesky presets, bootnodes field will be ignored");
         // Set holesky presets
         network = String::from(networks::HOLESKY_GENESIS_PATH);
-        bootnodes = networks::HOLESKY_BOOTNODES.to_vec();
+       //  bootnodes = networks::HOLESKY_BOOTNODES.to_vec();
     }
 
     if network == "sepolia" {
@@ -182,8 +182,8 @@ async fn main() {
 
         import_blocks(&store, &blocks);
     }
-
-    let jwt_secret = read_jwtsecret_file(authrpc_jwtsecret);
+    info!("AUTH RPC JWT SECRET {:?}", authrpc_jwtsecret);
+    let jwt_secret = read_jwtsecret_file("/home/admin/nodes/holesky_data/jwt.hex");
 
     // Get the signer from the default directory, create one if the key file is not present.
     let key_path = Path::new(&data_dir).join("node.key");

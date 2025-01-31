@@ -105,7 +105,7 @@ impl<S: AsyncWrite + AsyncRead + std::marker::Unpin> RLPxConnection<S> {
     /// Handshake already performed, now it starts a peer connection.
     /// It runs in it's own task and blocks until the connection is dropped
     pub async fn start(&mut self, table: Arc<Mutex<crate::kademlia::KademliaTable>>) {
-        log_peer_debug(&self.node, "Starting RLPx connection");
+        //log_peer_debug(&self.node, "Starting RLPx connection");
         if let Err(e) = self.exchange_hello_messages().await {
             self.connection_failed("Hello messages exchange failed", e, table)
                 .await;
@@ -154,10 +154,10 @@ impl<S: AsyncWrite + AsyncRead + std::marker::Unpin> RLPxConnection<S> {
 
         // Discard peer from kademlia table
         let remote_node_id = self.node.node_id;
-        log_peer_error(
-            &self.node,
-            &format!("{error_text}: ({error}), discarding peer {remote_node_id}"),
-        );
+        //log_peer_error(
+          //  &self.node,
+            //&format!("{error_text}: ({error}), discarding peer {remote_node_id}"),
+        //);
         table.lock().await.replace_peer(remote_node_id);
     }
 
@@ -285,7 +285,7 @@ impl<S: AsyncWrite + AsyncRead + std::marker::Unpin> RLPxConnection<S> {
             }
             Message::Ping(_) => {
                 self.send(Message::Pong(PongMessage {})).await?;
-                log_peer_debug(&self.node, "Pong sent");
+                //log_peer_debug(&self.node, "Pong sent");
             }
             Message::Pong(_) => {
                 // We ignore received Pong messages
@@ -410,7 +410,7 @@ impl<S: AsyncWrite + AsyncRead + std::marker::Unpin> RLPxConnection<S> {
         // Sending eth Status if peer supports it
         if self.capabilities.contains(&CAP_ETH) {
             let status = backend::get_status(&self.storage)?;
-            log_peer_debug(&self.node, "Sending status");
+           // log_peer_debug(&self.node, "Sending status");
             self.send(Message::Status(status)).await?;
             // The next immediate message in the ETH protocol is the
             // status, reference here:
@@ -418,7 +418,7 @@ impl<S: AsyncWrite + AsyncRead + std::marker::Unpin> RLPxConnection<S> {
             match self.receive().await? {
                 Message::Status(msg_data) => {
                     // TODO: Check message status is correct.
-                    log_peer_debug(&self.node, "Received Status");
+             //       log_peer_debug(&self.node, "Received Status");
                     backend::validate_status(msg_data, &self.storage)?
                 }
                 Message::Disconnect(disconnect) => {

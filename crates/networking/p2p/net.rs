@@ -139,7 +139,7 @@ async fn handle_peer_as_receiver(context: P2PContext, peer_addr: SocketAddr, str
             // TODO We should remove the peer from the table if connection failed
             // but currently it will make the tests fail
             // table.lock().await.replace_peer(node.node_id);
-            error!("Error creating tcp connection with peer at {peer_addr}: {e}")
+     //       error!("Error creating tcp connection with peer at {peer_addr}: {e}")
         }
     }
 }
@@ -152,7 +152,7 @@ async fn handle_peer_as_initiator(context: P2PContext, node: Node) {
             // TODO We should remove the peer from the table if connection failed
             // but currently it will make the tests fail
             // table.lock().await.replace_peer(node.node_id);
-            error!("Error establishing tcp connection with peer at {addr}: {e}");
+   //         error!("Error establishing tcp connection with peer at {addr}: {e}");
             return;
         }
     };
@@ -163,7 +163,7 @@ async fn handle_peer_as_initiator(context: P2PContext, node: Node) {
             // TODO We should remove the peer from the table if connection failed
             // but currently it will make the tests fail
             // table.lock().await.replace_peer(node.node_id);
-            error!("Error creating tcp connection with peer at {addr}: {e}")
+ //           error!("Error creating tcp connection with peer at {addr}: {e}")
         }
     };
 }
@@ -180,7 +180,7 @@ pub fn node_id_from_signing_key(signer: &SigningKey) -> H512 {
 
 /// Shows the amount of connected peers, active peers, and peers suitable for snap sync on a set interval
 pub async fn periodically_show_peer_stats(peer_table: Arc<Mutex<KademliaTable>>) {
-    const INTERVAL_DURATION: tokio::time::Duration = tokio::time::Duration::from_secs(120);
+    const INTERVAL_DURATION: tokio::time::Duration = tokio::time::Duration::from_secs(10);
     let mut interval = tokio::time::interval(INTERVAL_DURATION);
     loop {
         peer_table.lock().await.show_peer_stats();
