@@ -529,51 +529,46 @@ async fn storage_fetcher(
     // alive until the end signal so we don't lose queued messages
     let mut stale = false;
     let mut incoming = true;
-    while incoming {
-        // Fetch incoming requests
-        let mut msg_buffer = vec![];
-        if receiver.recv_many(&mut msg_buffer, 25).await != 0 {
-            for account_hashes_and_roots in msg_buffer {
-                if !account_hashes_and_roots.is_empty() {
-                    pending_storage.extend(account_hashes_and_roots);
-                } else {
-                    // Empty message signaling no more bytecodes to sync
-                    incoming = false
-                }
-            }
-        } else {
-            // Disconnect
-            incoming = false
-        }
-        // If we have enough pending bytecodes to fill a batch
-        // or if we have no more incoming batches, spawn a fetch process
-        // If the pivot became stale don't process anything and just save incoming requests
+    while incoming || !pending_storage.is_empty() {
+        // Process current batches
+        // We will be spawning a task for each batch in the pending storage
+        let mut storage_tasks = tokio::task::JoinSet::new();
         while !stale
-            && (pending_storage.len() >= NODE_BATCH_SIZE
-                || !incoming && !pending_storage.is_empty())
+            && (pending_storage.len() >= BATCH_SIZE || (!incoming && !pending_storage.is_empty()))
         {
-            // We will be spawning multiple tasks and then collecting their results
-            // This uses a loop inside the main loop as the result from these tasks may lead to more values in queue
-            let mut storage_tasks = tokio::task::JoinSet::new();
-            while !stale
-                && (pending_storage.len() >= NODE_BATCH_SIZE
-                    || !incoming && !pending_storage.is_empty())
-            {
-                let next_batch = pending_storage
-                    .drain(..NODE_BATCH_SIZE.min(pending_storage.len()))
-                    .collect::<Vec<_>>();
-                storage_tasks.spawn(fetch_storage_batch(
-                    next_batch.clone(),
-                    state_root,
-                    peers.clone(),
-                    store.clone(),
-                ));
-            }
-            // Add unfetched accounts to queue and handle stale signal
-            for res in storage_tasks.join_all().await {
-                let (remaining, is_stale) = res?;
-                pending_storage.extend(remaining);
-                stale |= is_stale;
+            // Collect Batch
+            let next_batch = pending_storage
+                .drain(..BATCH_SIZE.min(pending_storage.len()))
+                .collect::<Vec<_>>();
+            // Spawn storage fetch task
+            storage_tasks.spawn(fetch_storage_batch(
+                next_batch.clone(),
+                state_root,
+                peers.clone(),
+                store.clone(),
+            ));
+        }
+        // Collect results from the fetch tasks
+        for res in storage_tasks.join_all().await {
+            let (remaining, is_stale) = res?;
+            pending_storage.extend(remaining);
+            stale |= is_stale;
+            ret_num += 1;
+        }
+        // Receive incoming batches if we don't have enough pending
+        if pending_storage.len() < BATCH_SIZE {
+            let mut msg_buffer = vec![];
+            if receiver.recv_many(&mut msg_buffer, 25).await != 0 {
+                for account_hashes_and_roots in msg_buffer {
+                    if !account_hashes_and_roots.is_empty() {
+                        pending_storage.extend(account_hashes_and_roots);
+                    }
+                    // Disconnect / Empty message signaling no more bytecodes to sync
+                    else {
+                        info!("Final storage batch");
+                        incoming = false
+                    }
+                }
             }
         }
     }
