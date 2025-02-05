@@ -216,6 +216,7 @@ impl SyncManager {
                 let mut state_trie_tasks = tokio::task::JoinSet::new();
                 let key_checkpoints = store.get_state_trie_key_checkpoint()?;
                 for i in 0..STATE_TRIE_SEGMENTS {
+                    info!("Spawning state sync {i}/STATE_TRIE_SEGMENTS");
                     state_trie_tasks.spawn(state_sync(
                         pivot_header.state_root,
                         self.peers.clone(),
