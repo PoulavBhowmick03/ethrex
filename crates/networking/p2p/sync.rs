@@ -14,7 +14,7 @@ use tokio::{
     },
     time::Instant,
 };
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     kademlia::KademliaTable,
@@ -628,7 +628,7 @@ async fn fetch_storage_batch(
     peers: PeerHandler,
     store: Store,
 ) -> Result<(Vec<(H256, H256)>, bool), SyncError> {
-    info!(
+    debug!(
         "[Segment {segment_number}]: Requesting storage ranges for addresses {}..{}",
         batch.first().unwrap().0,
         batch.last().unwrap().0
@@ -638,7 +638,7 @@ async fn fetch_storage_batch(
         .request_storage_ranges(state_root, batch_roots, batch_hahses, H256::zero())
         .await
     {
-        info!(
+        debug!(
             "[Segment {segment_number}]: Received {} storage ranges",
             keys.len(),
         );
@@ -649,7 +649,7 @@ async fn fetch_storage_batch(
             // If only one incomplete range is returned then it must belong to a trie that is too big to fit into one request
             // We will handle this large trie separately
             if keys.is_empty() {
-                info!("[Segment {segment_number}]: Large storage trie encountered, handling separately");
+                debug!("[Segment {segment_number}]: Large storage trie encountered, handling separately");
                 let (account_hash, storage_root) = batch.remove(0);
                 if handle_large_storage_range(
                     state_root,
@@ -711,7 +711,7 @@ async fn handle_large_storage_range(
     let mut should_continue = true;
     // Fetch the remaining range
     while should_continue {
-        info!("Fetching large storage trie, current key: {}", next_key);
+        debug!("Fetching large storage trie, current key: {}", next_key);
 
         if let Some((keys, values, incomplete)) = peers
             .request_storage_range(state_root, storage_root, account_hash, next_key)
@@ -1101,7 +1101,6 @@ impl StateSyncProgress {
 }
 
 async fn show_state_sync_progress(progress: StateSyncProgress) {
-    info!("Satet sync start, computing current progress");
     const INTERVAL_DURATION: tokio::time::Duration = tokio::time::Duration::from_secs(120);
     let mut interval = tokio::time::interval(INTERVAL_DURATION);
     loop {
