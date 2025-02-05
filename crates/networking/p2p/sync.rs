@@ -425,7 +425,7 @@ async fn state_sync(
             )
             .await
         {
-            info!(
+            debug!(
                 "[Segment {segment_number}]: Received {} account ranges",
                 accounts.len()
             );
