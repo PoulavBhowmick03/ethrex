@@ -416,7 +416,7 @@ async fn state_sync(
             segment_number,
             start_account_hash,
         ));
-        info!("[Segment {segment_number}]: Requesting Account Range for state root {state_root}, starting hash: {start_account_hash}");
+        //info!("[Segment {segment_number}]: Requesting Account Range for state root {state_root}, starting hash: {start_account_hash}");
         if let Some((account_hashes, accounts, should_continue)) = peers
             .request_account_range(
                 state_root,
@@ -576,12 +576,14 @@ async fn storage_fetcher(
             // Disconnect
             incoming = false
         }
+        info!("Processing current batches");
         // If we have enough pending bytecodes to fill a batch
         // or if we have no more incoming batches, spawn a fetch process
         // If the pivot became stale don't process anything and just save incoming requests
         while !stale
             && (pending_storage.len() >= BATCH_SIZE || (!incoming && !pending_storage.is_empty()))
         {
+            info!("Spawning storage tasks");
             // We will be spawning multiple tasks and then collecting their results
             // This uses a loop inside the main loop as the result from these tasks may lead to more values in queue
             let mut storage_tasks = tokio::task::JoinSet::new();
