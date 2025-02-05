@@ -29,6 +29,10 @@ const BATCH_SIZE: usize = 300;
 const NODE_BATCH_SIZE: usize = 900;
 /// Maximum amount of concurrent paralell fetches for a queue
 const MAX_PARALLEL_FETCHES: usize = 10;
+/// Maximum amount of messages in a channel
+const MAX_CHANNEL_MESSAGES: usize = 500;
+/// Maximum amount of messages to read from a channel at once
+const MAX_CHANNEL_READS: usize = 200;
 
 lazy_static::lazy_static! {
     // Size of each state trie segment
@@ -391,8 +395,8 @@ async fn state_sync(
         return Ok((false, start_account_hash));
     }
     // Spawn storage & bytecode fetchers
-    let (bytecode_sender, bytecode_receiver) = mpsc::channel::<Vec<H256>>(500);
-    let (storage_sender, storage_receiver) = mpsc::channel::<Vec<(H256, H256)>>(500);
+    let (bytecode_sender, bytecode_receiver) = mpsc::channel::<Vec<H256>>(MAX_CHANNEL_MESSAGES);
+    let (storage_sender, storage_receiver) = mpsc::channel::<Vec<(H256, H256)>>(MAX_CHANNEL_MESSAGES);
     let bytecode_fetcher_handle = tokio::spawn(bytecode_fetcher(
         bytecode_receiver,
         peers.clone(),
@@ -559,7 +563,7 @@ async fn storage_fetcher(
     while incoming {
         // Fetch incoming requests
         let mut msg_buffer = vec![];
-        if receiver.recv_many(&mut msg_buffer, 200).await != 0 {
+        if receiver.recv_many(&mut msg_buffer, MAX_CHANNEL_READS).await != 0 {
             for account_hashes_and_roots in msg_buffer {
                 if !account_hashes_and_roots.is_empty() {
                     pending_storage.extend(account_hashes_and_roots);
@@ -767,8 +771,8 @@ async fn heal_state_trie(
         .collect();
     let mut paths = pending_state_paths.unwrap_or_default();
     // Spawn a storage healer and a bytecode fetcher for this blocks
-    let (storage_sender, storage_receiver) = mpsc::channel::<Vec<H256>>(500);
-    let (bytecode_sender, bytecode_receiver) = mpsc::channel::<Vec<H256>>(500);
+    let (storage_sender, storage_receiver) = mpsc::channel::<Vec<H256>>(MAX_CHANNEL_MESSAGES);
+    let (bytecode_sender, bytecode_receiver) = mpsc::channel::<Vec<H256>>(MAX_CHANNEL_MESSAGES);
     let bytecode_fetcher_handle = tokio::spawn(bytecode_fetcher(
         bytecode_receiver,
         peers.clone(),
@@ -949,7 +953,7 @@ async fn storage_healer(
         if incoming && (!receiver.is_empty() || pending_paths.is_empty()) {
             // Fetch incoming requests
             let mut msg_buffer = vec![];
-            if receiver.recv_many(&mut msg_buffer, 25).await != 0 {
+            if receiver.recv_many(&mut msg_buffer, MAX_CHANNEL_READS).await != 0 {
                 for account_hashes in msg_buffer {
                     if !account_hashes.is_empty() {
                         pending_paths.extend(
