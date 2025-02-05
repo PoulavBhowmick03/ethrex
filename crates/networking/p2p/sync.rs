@@ -14,7 +14,7 @@ use tokio::{
     },
     time::Instant,
 };
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::{
     kademlia::KademliaTable,
@@ -130,7 +130,7 @@ impl SyncManager {
             }
         }
         loop {
-            debug!("Requesting Block Headers from {current_head}");
+            info!("Requesting Block Headers from {current_head}");
             // Request Block Headers from Peer
             match self
                 .peers
@@ -138,7 +138,7 @@ impl SyncManager {
                 .await
             {
                 Some(mut block_headers) => {
-                    debug!(
+                    info!(
                         "Received {} block headers| Last Number: {}",
                         block_headers.len(),
                         block_headers.last().as_ref().unwrap().number
@@ -199,7 +199,7 @@ impl SyncManager {
                 let pivot_header = store
                     .get_block_header_by_hash(all_block_hashes[pivot_idx])?
                     .ok_or(SyncError::CorruptDB)?;
-                debug!(
+                info!(
                     "Selected block {} as pivot for snap sync",
                     pivot_header.number
                 );
@@ -276,7 +276,7 @@ async fn download_and_run_blocks(
     store: Store,
 ) -> Result<(), SyncError> {
     loop {
-        debug!("Requesting Block Bodies ");
+        info!("Requesting Block Bodies ");
         if let Some(block_bodies) = peers.request_block_bodies(block_hashes.clone()).await {
             let block_bodies_len = block_bodies.len();
             info!("Received {} Block Bodies", block_bodies_len);
@@ -314,9 +314,9 @@ async fn store_block_bodies(
     store: Store,
 ) -> Result<(), SyncError> {
     loop {
-        debug!("Requesting Block Bodies ");
+        info!("Requesting Block Bodies ");
         if let Some(block_bodies) = peers.request_block_bodies(block_hashes.clone()).await {
-            debug!(" Received {} Block Bodies", block_bodies.len());
+            info!(" Received {} Block Bodies", block_bodies.len());
             // Track which bodies we have already fetched
             let current_block_hashes = block_hashes.drain(..block_bodies.len());
             // Add bodies to storage
@@ -342,9 +342,9 @@ async fn store_receipts(
     store: Store,
 ) -> Result<(), SyncError> {
     loop {
-        debug!("Requesting Receipts ");
+        info!("Requesting Receipts ");
         if let Some(receipts) = peers.request_receipts(block_hashes.clone()).await {
-            debug!(" Received {} Receipts", receipts.len());
+            info!(" Received {} Receipts", receipts.len());
             // Track which blocks we have already fetched receipts for
             for (block_hash, receipts) in block_hashes.drain(0..receipts.len()).zip(receipts) {
                 store.add_receipts(block_hash, receipts)?;
@@ -385,12 +385,13 @@ async fn state_sync(
         store.clone(),
     ));
     let storage_fetcher_handle = tokio::spawn(storage_fetcher(
+        segment_number,
         storage_receiver,
         peers.clone(),
         store.clone(),
         state_root,
     ));
-    debug!("Starting/Resuming state trie download of segment number {segment_number} from key {start_account_hash}");
+    info!("[Segment {segment_number}]: Starting/Resuming state trie download of segment number {segment_number} from key {start_account_hash}");
     // Fetch Account Ranges
     // If we reached the maximum amount of retries then it means the state we are requesting is probably old and no longer available
     let mut progress_timer = Instant::now();
@@ -408,7 +409,7 @@ async fn state_sync(
                 initial_timestamp,
             ));
         }
-        debug!("[Segment {segment_number}]: Requesting Account Range for state root {state_root}, starting hash: {start_account_hash}");
+        info!("[Segment {segment_number}]: Requesting Account Range for state root {state_root}, starting hash: {start_account_hash}");
         if let Some((account_hashes, accounts, should_continue)) = peers
             .request_account_range(
                 state_root,
@@ -417,7 +418,7 @@ async fn state_sync(
             )
             .await
         {
-            debug!(
+            info!(
                 "[Segment {segment_number}]: Received {} account ranges",
                 accounts.len()
             );
@@ -465,7 +466,7 @@ async fn state_sync(
             break;
         }
     }
-    info!("Account Trie Fetching ended, signaling storage & bytecode fetcher process");
+    info!("[Segment {segment_number}] :Account Trie Fetching ended, signaling storage & bytecode fetcher process");
     // Send empty batch to signal that no more batches are incoming
     storage_sender.send(vec![]).await?;
     bytecode_sender.send(vec![]).await?;
@@ -523,7 +524,7 @@ async fn fetch_bytecode_batch(
     store: Store,
 ) -> Result<Vec<H256>, StoreError> {
     if let Some(bytecodes) = peers.request_bytecodes(batch.clone()).await {
-        debug!("Received {} bytecodes", bytecodes.len());
+        info!("Received {} bytecodes", bytecodes.len());
         // Store the bytecodes
         for code in bytecodes.into_iter() {
             store.add_account_code(batch.remove(0), code)?;
@@ -536,6 +537,7 @@ async fn fetch_bytecode_batch(
 /// Waits for incoming account hashes & storage roots from the receiver channel endpoint, queues them, and fetches and stores their bytecodes in batches
 /// This function will remain active until either an empty vec is sent to the receiver or the pivot becomes stale
 async fn storage_fetcher(
+    segment_number: usize,
     mut receiver: Receiver<Vec<(H256, H256)>>,
     peers: PeerHandler,
     store: Store,
@@ -559,11 +561,11 @@ async fn storage_fetcher(
                     incoming = false
                 }
             }
+            info!("[Segment {segment_number}]: Received incoming storage batch {} storages in queue", pending_storage.len() )
         } else {
             // Disconnect
             incoming = false
         }
-        info!("Processing current batches");
         // If we have enough pending bytecodes to fill a batch
         // or if we have no more incoming batches, spawn a fetch process
         // If the pivot became stale don't process anything and just save incoming requests
@@ -578,6 +580,7 @@ async fn storage_fetcher(
                     .drain(..BATCH_SIZE.min(pending_storage.len()))
                     .collect::<Vec<_>>();
                 storage_tasks.spawn(fetch_storage_batch(
+                    segment_number,
                     next_batch.clone(),
                     state_root,
                     peers.clone(),
@@ -596,8 +599,8 @@ async fn storage_fetcher(
             }
         }
     }
-    debug!(
-        "Concluding storage fetcher, {} storages left in queue to be healed later",
+    info!(
+        "[Segment {segment_number}]: Concluding storage fetcher, {} storages left in queue to be healed later",
         pending_storage.len()
     );
     Ok(())
@@ -606,13 +609,14 @@ async fn storage_fetcher(
 /// Receives a batch of account hashes with their storage roots, fetches their respective storage ranges via p2p and returns a list of the code hashes that couldn't be fetched in the request (if applicable)
 /// Also returns a boolean indicating if the pivot became stale during the request
 async fn fetch_storage_batch(
+    segment_number: usize,
     mut batch: Vec<(H256, H256)>,
     state_root: H256,
     peers: PeerHandler,
     store: Store,
 ) -> Result<(Vec<(H256, H256)>, bool), SyncError> {
-    debug!(
-        "Requesting storage ranges for addresses {}..{}",
+    info!(
+        "[Segment {segment_number}]: Requesting storage ranges for addresses {}..{}",
         batch.first().unwrap().0,
         batch.last().unwrap().0
     );
@@ -621,7 +625,7 @@ async fn fetch_storage_batch(
         .request_storage_ranges(state_root, batch_roots, batch_hahses, H256::zero())
         .await
     {
-        debug!("Received {} storage ranges", keys.len(),);
+        info!("[Segment {segment_number}]: Received {} storage ranges", keys.len(),);
         // Handle incomplete ranges
         if incomplete {
             // An incomplete range cannot be empty
@@ -629,7 +633,7 @@ async fn fetch_storage_batch(
             // If only one incomplete range is returned then it must belong to a trie that is too big to fit into one request
             // We will handle this large trie separately
             if keys.is_empty() {
-                debug!("Large storage trie encountered, handling separately");
+                info!("[Segment {segment_number}]: Large storage trie encountered, handling separately");
                 let (account_hash, storage_root) = batch.remove(0);
                 if handle_large_storage_range(
                     state_root,
@@ -691,7 +695,7 @@ async fn handle_large_storage_range(
     let mut should_continue = true;
     // Fetch the remaining range
     while should_continue {
-        debug!("Fetching large storage trie, current key: {}", next_key);
+        info!("Fetching large storage trie, current key: {}", next_key);
 
         if let Some((keys, values, incomplete)) = peers
             .request_storage_range(state_root, storage_root, account_hash, next_key)
@@ -792,10 +796,10 @@ async fn heal_state_trie(
             break;
         }
     }
-    debug!("State Healing stopped, signaling storage healer");
+    info!("State Healing stopped, signaling storage healer");
     // Save paths for the next cycle
     if !paths.is_empty() {
-        debug!("Caching {} paths for the next cycle", paths.len());
+        info!("Caching {} paths for the next cycle", paths.len());
         store.set_state_heal_paths(paths.clone())?;
     }
     // Send empty batch to signal that no more batches are incoming
@@ -807,7 +811,7 @@ async fn heal_state_trie(
     // If a storage trie was left mid-healing we will heal it again
     let storage_healing_succesful = storage_heal_paths.is_empty();
     if !storage_healing_succesful {
-        debug!("{} storages with pending healing", storage_heal_paths.len());
+        info!("{} storages with pending healing", storage_heal_paths.len());
         store.set_storage_heal_paths(storage_heal_paths.into_iter().collect())?;
     }
     Ok(paths.is_empty() && storage_healing_succesful)
@@ -963,7 +967,7 @@ async fn heal_storage_batch(
         .request_storage_trienodes(state_root, batch.clone())
         .await
     {
-        debug!("Received {} storage nodes", nodes.len());
+        info!("Received {} storage nodes", nodes.len());
         // Process the nodes for each account path
         for (acc_path, paths) in batch.iter_mut() {
             let mut trie = store.open_storage_trie(*acc_path, *EMPTY_TRIE_HASH);
