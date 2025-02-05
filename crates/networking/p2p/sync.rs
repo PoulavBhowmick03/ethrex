@@ -504,8 +504,9 @@ async fn bytecode_fetcher(
             Some(code_hashes) if !code_hashes.is_empty() => {
                 pending_bytecodes.extend(code_hashes);
                 info!(
-                    "Received incoming bytecode request, current batch: {}/{BATCH_SIZE}",
-                    pending_bytecodes.len()
+                    "Received incoming bytecode request, current batch: {}/{BATCH_SIZE}, messages in receiver: {}",
+                    pending_bytecodes.len(),
+                    receiver.len(),
                 )
             }
             // Disconnect / Empty message signaling no more bytecodes to sync

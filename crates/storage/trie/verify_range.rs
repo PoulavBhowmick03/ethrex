@@ -19,7 +19,9 @@ pub fn verify_range(
     let res = verify_range_i(root, first_key, keys, values, proof);
     match &res {
         Ok(_) => {},
-        Err(e) => {tracing::info!("Verify range failed for root {root} with {e:?}");},
+        Err(e) => {
+            tracing::info!("Verify range failed for root {root} with {e:?}");
+        },
     }
     res
 }
