@@ -330,7 +330,10 @@ impl PeerHandler {
             });
             let peer = self.get_peer_channel_with_retry(Capability::Snap).await?;
             let mut receiver = peer.receiver.lock().await;
-            peer.sender.send(request).await.unwrap();
+            match peer.sender.send(request).await {
+                Ok(_) => {},
+                Err(err) => {info!("Send error: {}", err.to_string());},
+            }
             if let Some((mut slots, proof)) = tokio::time::timeout(PEER_REPLY_TIMOUT, async move {
                 loop {
                     match receiver.recv().await {
