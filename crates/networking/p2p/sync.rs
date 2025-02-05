@@ -559,7 +559,7 @@ async fn storage_fetcher(
     while incoming {
         // Fetch incoming requests
         let mut msg_buffer = vec![];
-        if receiver.recv_many(&mut msg_buffer, 100).await != 0 {
+        if receiver.recv_many(&mut msg_buffer, 200).await != 0 {
             for account_hashes_and_roots in msg_buffer {
                 if !account_hashes_and_roots.is_empty() {
                     pending_storage.extend(account_hashes_and_roots);
@@ -569,8 +569,9 @@ async fn storage_fetcher(
                 }
             }
             info!(
-                "[Segment {segment_number}]: Received incoming storage batch {} storages in queue",
-                pending_storage.len()
+                "[Segment {segment_number}]: Received incoming storage batch {} storages in queue, {} in receiver",
+                pending_storage.len(),
+                receiver.len(),
             )
         } else {
             // Disconnect
