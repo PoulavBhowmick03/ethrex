@@ -28,7 +28,7 @@ const BATCH_SIZE: usize = 300;
 /// Max size of a bach to stat a fetch request in queues for nodes
 const NODE_BATCH_SIZE: usize = 900;
 /// Maximum amount of concurrent paralell fetches for a queue
-const MAX_PARALLEL_FETCHES: usize = 5;
+const MAX_PARALLEL_FETCHES: usize = 10;
 
 lazy_static::lazy_static! {
     // Size of each state trie segment
@@ -559,7 +559,7 @@ async fn storage_fetcher(
     while incoming {
         // Fetch incoming requests
         let mut msg_buffer = vec![];
-        if receiver.recv_many(&mut msg_buffer, 50).await != 0 {
+        if receiver.recv_many(&mut msg_buffer, 100).await != 0 {
             for account_hashes_and_roots in msg_buffer {
                 if !account_hashes_and_roots.is_empty() {
                     pending_storage.extend(account_hashes_and_roots);
