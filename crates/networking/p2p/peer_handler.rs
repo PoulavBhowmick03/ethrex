@@ -351,6 +351,7 @@ impl PeerHandler {
             {
                 // Check we got a reasonable amount of storage ranges
                 if slots.len() > storage_roots.len() || slots.is_empty() {
+                    info!("Got storage range len {}", slots.len());
                     return None;
                 }
                 // Unzip & validate response
