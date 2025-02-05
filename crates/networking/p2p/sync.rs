@@ -615,6 +615,9 @@ async fn storage_fetcher(
                 pending_storage.extend(remaining);
                 stale |= is_stale;
             }
+            if stale {
+                info!("Stale PIVOT");
+            }
         }
     }
     info!(
