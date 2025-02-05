@@ -330,7 +330,7 @@ impl PeerHandler {
             });
             let peer = self.get_peer_channel_with_retry(Capability::Snap).await?;
             let mut receiver = peer.receiver.lock().await;
-            peer.sender.send(request).await.ok()?;
+            peer.sender.send(request).await.unwrap();
             if let Some((mut slots, proof)) = tokio::time::timeout(PEER_REPLY_TIMOUT, async move {
                 loop {
                     match receiver.recv().await {
@@ -346,8 +346,7 @@ impl PeerHandler {
                 }
             })
             .await
-            .ok()
-            .flatten()
+            .unwrap()
             {
                 // Check we got a reasonable amount of storage ranges
                 if slots.len() > storage_roots.len() || slots.is_empty() {
@@ -398,6 +397,8 @@ impl PeerHandler {
                     storage_values.push(values);
                 }
                 return Some((storage_keys, storage_values, should_continue));
+            } else {
+                info!("Peer timeout")
             }
         }
         None
