@@ -559,7 +559,7 @@ async fn storage_fetcher(
     while incoming {
         // Fetch incoming requests
         let mut msg_buffer = vec![];
-        if receiver.recv_many(&mut msg_buffer, 25).await != 0 {
+        if receiver.recv_many(&mut msg_buffer, 50).await != 0 {
             for account_hashes_and_roots in msg_buffer {
                 if !account_hashes_and_roots.is_empty() {
                     pending_storage.extend(account_hashes_and_roots);
@@ -577,10 +577,6 @@ async fn storage_fetcher(
             incoming = false
         }
         info!("Processing current batches");
-        info!("Process?: {}", !stale && (pending_storage.len() >= BATCH_SIZE || (!incoming && !pending_storage.is_empty())));
-        if stale {
-            info!("Stale pivot");
-        }
         // If we have enough pending bytecodes to fill a batch
         // or if we have no more incoming batches, spawn a fetch process
         // If the pivot became stale don't process anything and just save incoming requests
