@@ -585,10 +585,11 @@ async fn storage_fetcher(
             // We will be spawning multiple tasks and then collecting their results
             // This uses a loop inside the main loop as the result from these tasks may lead to more values in queue
             let mut storage_tasks = tokio::task::JoinSet::new();
-            for _ in 0..MAX_PARALLEL_FETCHES {
+            for i in 0..MAX_PARALLEL_FETCHES {
                 let next_batch = pending_storage
                     .drain(..BATCH_SIZE.min(pending_storage.len()))
                     .collect::<Vec<_>>();
+                info!("[Segment {segment_number}]: Spawning storage fetchere number {i}");
                 storage_tasks.spawn(fetch_storage_batch(
                     segment_number,
                     next_batch.clone(),
@@ -1098,6 +1099,7 @@ impl StateSyncProgress {
 }
 
 async fn show_state_sync_progress(progress: StateSyncProgress) {
+    info!("Satet sync start, computing current progress");
     const INTERVAL_DURATION: tokio::time::Duration = tokio::time::Duration::from_secs(120);
     let mut interval = tokio::time::interval(INTERVAL_DURATION);
     loop {
