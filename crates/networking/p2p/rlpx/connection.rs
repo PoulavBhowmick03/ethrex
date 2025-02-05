@@ -227,7 +227,6 @@ impl<S: AsyncWrite + AsyncRead + std::marker::Unpin> RLPxConnection<S> {
                 }
                 // Expect a message from the backend
                 Some(message) = receiver.recv() => {
-                    tracing::info!("Sending message to peer, messages in queue: {}", receiver.len());
                     self.send(message).await?;
                 }
                 // This is not ideal, but using the receiver without
