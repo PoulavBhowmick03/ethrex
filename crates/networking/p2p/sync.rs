@@ -234,10 +234,12 @@ impl SyncManager {
                 // Check for pivot staleness
                 let mut stale_pivot = false;
                 let mut state_trie_checkpoint = [H256::zero(); STATE_TRIE_SEGMENTS];
-                for (i, res) in state_trie_tasks.join_all().await.into_iter().enumerate() {
-                    let (is_stale, last_key) = res?;
+                let mut segment_idx = 0;
+                while let Some(res) = state_trie_tasks.join_next().await {
+                    let (is_stale, last_key) = res??;
                     stale_pivot |= is_stale;
-                    state_trie_checkpoint[i] = last_key;
+                    state_trie_checkpoint[segment_idx] = last_key;
+                    segment_idx +=1;
                 }
                 // Update state trie checkpoint
                 store.set_state_trie_key_checkpoint(state_trie_checkpoint)?;
