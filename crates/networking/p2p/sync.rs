@@ -6,7 +6,7 @@ use ethrex_core::{
 use ethrex_rlp::{decode::RLPDecode, encode::RLPEncode, error::RLPDecodeError};
 use ethrex_storage::{error::StoreError, Store, STATE_TRIE_SEGMENTS};
 use ethrex_trie::{Nibbles, Node, TrieError, TrieState, EMPTY_TRIE_HASH};
-use std::{array, cmp::min, collections::BTreeMap, sync::Arc};
+use std::{array, cmp::min, collections::BTreeMap, sync::Arc, thread::sleep};
 use tokio::{
     sync::{
         mpsc::{self, error::SendError, Receiver, Sender},
@@ -1126,6 +1126,8 @@ impl StateSyncProgress {
 }
 
 async fn show_state_sync_progress(progress: StateSyncProgress) {
+    // Rest for one interval so we don't start computing on empty progress
+    sleep(INTERVAL_DURATION);
     info!("State sync progress shower activated!");
     const INTERVAL_DURATION: tokio::time::Duration = tokio::time::Duration::from_secs(20);
     let mut interval = tokio::time::interval(INTERVAL_DURATION);
