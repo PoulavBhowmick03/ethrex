@@ -1061,7 +1061,7 @@ struct StateSyncProgressData {
     cycle_start: Instant,
     initial_keys: [H256; STATE_TRIE_SEGMENTS],
     current_keys: [H256; STATE_TRIE_SEGMENTS],
-    ended: [bool; STATE_TRIE_SEGMENTS],
+    ended: [bool; STATE_TRIE_SEGMENTS]
 }
 
 impl StateSyncProgress {
@@ -1097,11 +1097,13 @@ impl StateSyncProgress {
             synced_accounts +=
                 data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
         }
+        dbg!(synced_accounts);
         // Add 1 here to avoid dividing by zero, the change should be inperceptible
         let completion_rate: U512 = U512::from(synced_accounts + 1) * 100 / U512::from(U256::MAX);
+        dbg!(completion_rate);
         // Make a simple time to finish estimation based on current progress
         // The estimation relies on account hashes being (close to) evenly distributed
-        let mut synced_accounts_this_cycle = U256::zero();
+        let mut synced_accounts_this_cycle = U256::one();
         // Calculate the total amount of accounts synced this cycle
         for i in 0..STATE_TRIE_SEGMENTS {
             synced_accounts_this_cycle +=
@@ -1119,7 +1121,7 @@ impl StateSyncProgress {
             completion_rate,
             seconds_to_readable(time_to_finish_secs)
         );
-        data.ended.iter().all(|e| *e)
+        data.ended.iter().all(|e|*e)
     }
 }
 
