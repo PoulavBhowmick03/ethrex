@@ -230,7 +230,7 @@ impl SyncManager {
                         state_sync_progress.clone(),
                     ));
                 }
-                show_progress_handle.abort();
+                show_progress_handle.await?;
                 // Check for pivot staleness
                 let mut stale_pivot = false;
                 let mut state_trie_checkpoint = [H256::zero(); STATE_TRIE_SEGMENTS];
@@ -477,6 +477,11 @@ async fn state_sync(
             break;
         }
     }
+    // Update sync progress (this task is not vital so we can detach it)
+    tokio::task::spawn(StateSyncProgress::end_segment(
+        state_sync_progress.clone(),
+        segment_number,
+    ));
     info!("[Segment {segment_number}] :Account Trie Fetching ended, signaling storage & bytecode fetcher process");
     // Send empty batch to signal that no more batches are incoming
     storage_sender.send(vec![]).await?;
@@ -511,7 +516,10 @@ async fn bytecode_fetcher(
             }
             // Disconnect / Empty message signaling no more bytecodes to sync
             _ => {
-                info!("Final bytecode batch, messages in receiver: {}", receiver.len());
+                info!(
+                    "Final bytecode batch, messages in receiver: {}",
+                    receiver.len()
+                );
                 incoming = false
             }
         }
@@ -592,7 +600,7 @@ async fn storage_fetcher(
             // We will be spawning multiple tasks and then collecting their results
             // This uses a loop inside the main loop as the result from these tasks may lead to more values in queue
             let mut storage_tasks = tokio::task::JoinSet::new();
-            for i in 0..MAX_PARALLEL_FETCHES {
+            for _ in 0..MAX_PARALLEL_FETCHES {
                 let next_batch = pending_storage
                     .drain(..BATCH_SIZE.min(pending_storage.len()))
                     .collect::<Vec<_>>();
@@ -1053,6 +1061,7 @@ struct StateSyncProgressData {
     cycle_start: Instant,
     initial_keys: [H256; STATE_TRIE_SEGMENTS],
     current_keys: [H256; STATE_TRIE_SEGMENTS],
+    ended: [bool; STATE_TRIE_SEGMENTS],
 }
 
 impl StateSyncProgress {
@@ -1062,6 +1071,7 @@ impl StateSyncProgress {
                 cycle_start,
                 initial_keys: Default::default(),
                 current_keys: Default::default(),
+                ended: Default::default(),
             })),
         }
     }
@@ -1072,8 +1082,12 @@ impl StateSyncProgress {
     async fn update_key(progress: StateSyncProgress, segment_number: usize, current_key: H256) {
         progress.data.lock().await.current_keys[segment_number] = current_key
     }
+    async fn end_segment(progress: StateSyncProgress, segment_number: usize) {
+        progress.data.lock().await.ended[segment_number] = true
+    }
 
-    async fn show_progress(&self) {
+    // Returns true if the state sync ended
+    async fn show_progress(&self) -> bool {
         // Copy the current data so we don't read while it is being written
         let data = self.data.lock().await.clone();
         // Calculate current progress percentage
@@ -1104,7 +1118,8 @@ impl StateSyncProgress {
             "Downloading state trie, completion rate: {}%, estimated time to finish: {}",
             completion_rate,
             seconds_to_readable(time_to_finish_secs)
-        )
+        );
+        data.ended.iter().all(|e| *e)
     }
 }
 
@@ -1112,10 +1127,10 @@ async fn show_state_sync_progress(progress: StateSyncProgress) {
     info!("State sync progress shower activated!");
     const INTERVAL_DURATION: tokio::time::Duration = tokio::time::Duration::from_secs(20);
     let mut interval = tokio::time::interval(INTERVAL_DURATION);
-    loop {
-        //interval.tick().await;
-        info!("Computing progress to show");
-        progress.show_progress().await
+    let mut complete = false;
+    while !complete {
+        interval.tick().await;
+        complete = progress.show_progress().await
     }
 }
 
