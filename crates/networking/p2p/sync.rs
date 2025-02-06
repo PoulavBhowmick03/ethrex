@@ -1109,10 +1109,11 @@ impl StateSyncProgress {
 }
 
 async fn show_state_sync_progress(progress: StateSyncProgress) {
+    info!("State sync progress shower activated!");
     const INTERVAL_DURATION: tokio::time::Duration = tokio::time::Duration::from_secs(20);
     let mut interval = tokio::time::interval(INTERVAL_DURATION);
     loop {
-        interval.tick().await;
+        //interval.tick().await;
         info!("Computing progress to show");
         progress.show_progress().await
     }
