@@ -16,22 +16,6 @@ pub fn verify_range(
     values: &[ValueRLP],
     proof: &[Vec<u8>],
 ) -> Result<bool, TrieError> {
-    let res = verify_range_i(root, first_key, keys, values, proof);
-    match &res {
-        Ok(_) => {},
-        Err(e) => {
-            tracing::info!("Verify range failed for root {root} with {e:?}");
-        },
-    }
-    res
-}
-pub fn verify_range_i(
-    root: H256,
-    first_key: &H256,
-    keys: &[H256],
-    values: &[ValueRLP],
-    proof: &[Vec<u8>],
-) -> Result<bool, TrieError> {
     // Store proof nodes by hash
     let proof_nodes = ProofNodeStorage::from_proof(proof);
     // Validate range
