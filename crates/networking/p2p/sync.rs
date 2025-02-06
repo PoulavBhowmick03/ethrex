@@ -573,23 +573,22 @@ async fn storage_fetcher(
                     incoming = false
                 }
             }
-            info!(
-                "[Segment {segment_number}]: Received incoming storage batch {} storages in queue, {} in receiver",
-                pending_storage.len(),
-                receiver.len(),
-            )
+            // info!(
+            //     "[Segment {segment_number}]: Received incoming storage batch {} storages in queue, {} in receiver",
+            //     pending_storage.len(),
+            //     receiver.len(),
+            // )
         } else {
             // Disconnect
             incoming = false
         }
-        info!("Processing current batches");
         // If we have enough pending bytecodes to fill a batch
         // or if we have no more incoming batches, spawn a fetch process
         // If the pivot became stale don't process anything and just save incoming requests
         while !stale
             && (pending_storage.len() >= BATCH_SIZE || (!incoming && !pending_storage.is_empty()))
         {
-            info!("Spawning storage tasks");
+            //info!("Spawning storage tasks");
             // We will be spawning multiple tasks and then collecting their results
             // This uses a loop inside the main loop as the result from these tasks may lead to more values in queue
             let mut storage_tasks = tokio::task::JoinSet::new();
@@ -597,7 +596,7 @@ async fn storage_fetcher(
                 let next_batch = pending_storage
                     .drain(..BATCH_SIZE.min(pending_storage.len()))
                     .collect::<Vec<_>>();
-                info!("[Segment {segment_number}]: Spawning storage fetchere number {i}");
+                //info!("[Segment {segment_number}]: Spawning storage fetchere number {i}");
                 storage_tasks.spawn(fetch_storage_batch(
                     segment_number,
                     next_batch.clone(),
@@ -658,7 +657,7 @@ async fn fetch_storage_batch(
             // If only one incomplete range is returned then it must belong to a trie that is too big to fit into one request
             // We will handle this large trie separately
             if keys.is_empty() {
-                info!("[Segment {segment_number}]: Large storage trie encountered, handling separately");
+                debug!("[Segment {segment_number}]: Large storage trie encountered, handling separately");
                 let (account_hash, storage_root) = batch.remove(0);
                 if handle_large_storage_range(
                     state_root,
@@ -720,7 +719,7 @@ async fn handle_large_storage_range(
     let mut should_continue = true;
     // Fetch the remaining range
     while should_continue {
-        info!("Fetching large storage trie, current key: {}", next_key);
+        debug!("Fetching large storage trie, current key: {}", next_key);
 
         if let Some((keys, values, incomplete)) = peers
             .request_storage_range(state_root, storage_root, account_hash, next_key)
