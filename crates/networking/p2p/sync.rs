@@ -1091,11 +1091,13 @@ impl StateSyncProgress {
         let mut synced_accounts = U256::zero();
         // Calculate the total amount of accounts synced
         for i in 0..STATE_TRIE_SEGMENTS {
-            synced_accounts +=
-                data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
+            let segment_synced_accounts = data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
+            let segment_completion_rate = (U512::from(segment_synced_accounts + 1) * 100) / U512::from(U256::MAX);
+            info!("Segment {i} completion rate: {segment_completion_rate}%");
+            synced_accounts += segment_synced_accounts;
         }
         // Add 1 here to avoid dividing by zero, the change should be inperceptible
-        let completion_rate: U512 = U512::from(synced_accounts + 1) * 100 / U512::from(U256::MAX);
+        let completion_rate: U512 = (U512::from(synced_accounts + 1) * 100) / U512::from(U256::MAX);
         // Make a simple time to finish estimation based on current progress
         // The estimation relies on account hashes being (close to) evenly distributed
         let mut synced_accounts_this_cycle = U256::one();
@@ -1124,7 +1126,7 @@ async fn show_state_sync_progress(progress: StateSyncProgress) {
     // Rest for one interval so we don't start computing on empty progress
     sleep(INTERVAL_DURATION);
     info!("State sync progress shower activated!");
-    const INTERVAL_DURATION: tokio::time::Duration = tokio::time::Duration::from_secs(20);
+    const INTERVAL_DURATION: tokio::time::Duration = tokio::time::Duration::from_secs(30);
     let mut interval = tokio::time::interval(INTERVAL_DURATION);
     let mut complete = false;
     while !complete {
