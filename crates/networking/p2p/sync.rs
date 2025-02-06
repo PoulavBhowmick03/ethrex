@@ -503,15 +503,15 @@ async fn bytecode_fetcher(
         match receiver.recv().await {
             Some(code_hashes) if !code_hashes.is_empty() => {
                 pending_bytecodes.extend(code_hashes);
-                info!(
-                    "Received incoming bytecode request, current batch: {}/{BATCH_SIZE}, messages in receiver: {}",
-                    pending_bytecodes.len(),
-                    receiver.len(),
-                )
+                // info!(
+                //     "Received incoming bytecode request, current batch: {}/{BATCH_SIZE}, messages in receiver: {}",
+                //     pending_bytecodes.len(),
+                //     receiver.len(),
+                // )
             }
             // Disconnect / Empty message signaling no more bytecodes to sync
             _ => {
-                info!("Final bytecode batch");
+                info!("Final bytecode batch, messages in receiver: {}", receiver.len());
                 incoming = false
             }
         }
@@ -536,7 +536,7 @@ async fn fetch_bytecode_batch(
     store: Store,
 ) -> Result<Vec<H256>, StoreError> {
     if let Some(bytecodes) = peers.request_bytecodes(batch.clone()).await {
-        info!("Received {} bytecodes", bytecodes.len());
+        //info!("Received {} bytecodes", bytecodes.len());
         // Store the bytecodes
         for code in bytecodes.into_iter() {
             store.add_account_code(batch.remove(0), code)?;
