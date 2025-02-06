@@ -1092,12 +1092,14 @@ impl StateSyncProgress {
         let mut synced_accounts = U256::zero();
         // Calculate the total amount of accounts synced
         for i in 0..STATE_TRIE_SEGMENTS {
-            synced_accounts +=
-                data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
+            // synced_accounts +=
+            //     data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
+            synced_accounts = synced_accounts.checked_add(data.current_keys[i].into_uint().checked_sub(STATE_TRIE_SEGMENTS_START[i].into_uint()).unwrap()).unwrap();
         }
         info!("SyncedAccounts: {synced_accounts:?}");
         // Add 1 here to avoid dividing by zero, the change should be inperceptible
-        let completion_rate: U512 = U512::from(synced_accounts + 1) * 100 / U512::from(U256::MAX);
+        //let completion_rate: U512 = U512::from(synced_accounts + 1) * 100 / U512::from(U256::MAX);
+        let completion_rate: U512 = (U512::from(synced_accounts + 1).checked_mul(100.into()).unwrap()).checked_div(U512::from(U256::MAX)).unwrap();
         info!("CompletionRate: {completion_rate:?}");
         // Make a simple time to finish estimation based on current progress
         // The estimation relies on account hashes being (close to) evenly distributed
