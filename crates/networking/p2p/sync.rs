@@ -1085,6 +1085,7 @@ impl StateSyncProgress {
 
     // Returns true if the state sync ended
     async fn show_progress(&self) -> bool {
+        info!("Computing current progress");
         // Copy the current data so we don't read while it is being written
         let data = self.data.lock().await.clone();
         // Calculate current progress percentage
