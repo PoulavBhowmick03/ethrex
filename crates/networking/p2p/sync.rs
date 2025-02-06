@@ -1094,6 +1094,7 @@ impl StateSyncProgress {
         for i in 0..STATE_TRIE_SEGMENTS {
             // synced_accounts +=
             //     data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
+            info!("SyncedAccounts: {synced_accounts:?}, CurrentKey: {}, Segment Start {}", data.current_keys[i].into_uint(),STATE_TRIE_SEGMENTS_START[i].into_uint());
             synced_accounts = synced_accounts.checked_add(data.current_keys[i].into_uint().checked_sub(STATE_TRIE_SEGMENTS_START[i].into_uint()).unwrap()).unwrap();
         }
         info!("SyncedAccounts: {synced_accounts:?}");
