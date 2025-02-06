@@ -1092,14 +1092,13 @@ impl StateSyncProgress {
         let mut synced_accounts = U256::zero();
         // Calculate the total amount of accounts synced
         for i in 0..STATE_TRIE_SEGMENTS {
-            info!("SyncedAccounts: {synced_accounts:?}");
             synced_accounts +=
                 data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
         }
-        dbg!(synced_accounts);
+        info!("SyncedAccounts: {synced_accounts:?}");
         // Add 1 here to avoid dividing by zero, the change should be inperceptible
         let completion_rate: U512 = U512::from(synced_accounts + 1) * 100 / U512::from(U256::MAX);
-        dbg!(completion_rate);
+        info!("CompletionRate: {completion_rate:?}");
         // Make a simple time to finish estimation based on current progress
         // The estimation relies on account hashes being (close to) evenly distributed
         let mut synced_accounts_this_cycle = U256::one();
@@ -1108,8 +1107,10 @@ impl StateSyncProgress {
             synced_accounts_this_cycle +=
                 data.current_keys[i].into_uint() - data.initial_keys[i].into_uint();
         }
+        info!("SyncedAccountsThisCycle: {synced_accounts_this_cycle:?}");
         let remaining_accounts =
             (U512::from(U256::MAX) / 100) * (U512::from(100) - completion_rate);
+        info!("RemainingAccounts: {remaining_accounts:?}");
         // Time to finish = Time since start / Accounts synced this cycle * Remaining accounts
         let time_to_finish_secs =
             U512::from(Instant::now().duration_since(data.cycle_start).as_secs())
