@@ -1091,7 +1091,7 @@ impl StateSyncProgress {
         let mut synced_accounts = U256::zero();
         // Calculate the total amount of accounts synced
         for i in 0..STATE_TRIE_SEGMENTS {
-            dbg!(synced_accounts);
+            info!("SyncedAccounts: {synced_accounts:?}");
             synced_accounts +=
                 data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
         }
