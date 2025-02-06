@@ -1077,6 +1077,7 @@ impl StateSyncProgress {
         progress.data.lock().await.initial_keys[segment_number] = initial_key;
     }
     async fn update_key(progress: StateSyncProgress, segment_number: usize, current_key: H256) {
+        info("Updating key for segment {segment_number} to {current_key}");
         progress.data.lock().await.current_keys[segment_number] = current_key
     }
     async fn end_segment(progress: StateSyncProgress, segment_number: usize) {
