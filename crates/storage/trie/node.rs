@@ -153,7 +153,7 @@ impl Node {
                 let choices = array::from_fn(|i| decode_child(&rlp_items[i]));
                 let (value, _) = decode_bytes(&rlp_items[16])?;
                 BranchNode {
-                    choices: Box::new(choices),
+                    choices,
                     value: value.to_vec(),
                 }
                 .into()

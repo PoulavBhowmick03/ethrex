@@ -51,7 +51,7 @@ macro_rules! pmt_node {
                 }.into();
                 choices[$choice as usize] = child_node.insert_self(&mut $trie.state).unwrap();
             )*
-            Box::new(choices)
+            choices
         })
     };
     (
@@ -71,7 +71,7 @@ macro_rules! pmt_node {
                         offset offset
                     }).insert_self(&mut $trie.state).unwrap();
             )*
-            Box::new(choices)
+            choices
         }, $value)
     }};
 
