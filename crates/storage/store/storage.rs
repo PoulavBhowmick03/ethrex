@@ -1081,15 +1081,13 @@ impl Store {
             .write_snapshot_storage_batch(account_hash, storage_keys, storage_values)
     }
 
-    pub fn rebuild_state_from_snapshot(&self) -> Result<(H256, Vec<H256>), StoreError> {
-        self.engine.rebuild_state_from_snapshot()
-    }
-
     /// Clears all checkpoint data created during the last snap sync
     pub fn clear_snap_state(&self) -> Result<(), StoreError> {
         self.engine.clear_snap_state()
     }
 
+    /// Rebuilds a segment of the state trie segment from the current snapshot
+    /// Returns a tuple with the last rebuilt account hash + the account hashes of storages in need of healing + the current state root
     pub fn rebuild_state_trie_segment(
         &self,
         current_root: H256,

@@ -636,43 +636,6 @@ impl StoreEngine for Store {
         txn.commit().map_err(StoreError::LibmdbxError)
     }
 
-    /// Rebuilds state trie from a snapshot, returns the resulting trie's root
-    /// and the addresses of the storages whose root doesn't match the one in the account state
-    /// TODO: Consider receiving the sender to the storage heal queue so we start healing them while rebuilding
-    fn rebuild_state_from_snapshot(&self) -> Result<(H256, Vec<H256>), StoreError> {
-        let mut mismatched_storage_accounts = vec![];
-        // Open a new state trie
-        let mut state_trie = self.open_state_trie(*EMPTY_TRIE_HASH);
-        // Add all accounts
-        let txn = self.db.begin_read().map_err(StoreError::LibmdbxError)?;
-        let cursor = txn
-            .cursor::<StateSnapShot>()
-            .map_err(StoreError::LibmdbxError)?;
-        let mut inserts_since_last_commit = 0;
-        for (hash, account) in cursor
-            .walk(None)
-            .map_while(|res| res.ok().map(|(hash, acc)| (hash.to(), acc.to())))
-        {
-            // Rebuild storage trie and check for mismatches
-            let rebuilt_root = self.rebuild_storage_trie_from_snapshot(hash)?;
-            if rebuilt_root != account.storage_root {
-                mismatched_storage_accounts.push(hash);
-            }
-            // Add account to trie
-            state_trie.insert(hash.to_fixed_bytes().to_vec(), account.encode_to_vec())?;
-            // Commit every few iterations so we don't build the full trie in memory
-            inserts_since_last_commit += 1;
-            if inserts_since_last_commit > MAX_TRIE_INSERTS_WITHOUT_COMMIT {
-                state_trie.hash()?;
-                inserts_since_last_commit = 0;
-            }
-        }
-        Ok((state_trie.hash()?, mismatched_storage_accounts))
-    }
-
-    /// Rebuilds state trie segment from the snapshot
-    /// and the addresses of the storages whose root doesn't match the one in the account state
-    /// Returns the last rebuild account hash + the account hashes of storages in need of healing + the current state root
     fn rebuild_state_trie_segment(
         &self,
         current_root: H256,

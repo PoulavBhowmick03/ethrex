@@ -305,10 +305,8 @@ pub trait StoreEngine: Debug + Send + Sync + RefUnwindSafe {
         storage_values: Vec<U256>,
     ) -> Result<(), StoreError>;
 
-    /// Rebuilds state trie from a snapshot, returns the resulting trie's root
-    /// and the addresses of the storages whose root doesn't match the one in the account state
-    fn rebuild_state_from_snapshot(&self) -> Result<(H256, Vec<H256>), StoreError>;
-
+    /// Rebuilds a segment of the state trie segment from the current snapshot
+    /// Returns a tuple with the last rebuilt account hash + the account hashes of storages in need of healing + the current state root
     fn rebuild_state_trie_segment(
         &self,
         current_root: H256,

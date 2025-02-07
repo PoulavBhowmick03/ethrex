@@ -515,10 +515,6 @@ impl StoreEngine for Store {
         todo!()
     }
 
-    fn rebuild_state_from_snapshot(&self) -> Result<(H256, Vec<H256>), StoreError> {
-        todo!()
-    }
-
     fn rebuild_state_trie_segment(
         &self,
         current_root: H256,
