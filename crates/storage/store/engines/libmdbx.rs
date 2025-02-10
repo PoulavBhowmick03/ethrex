@@ -657,8 +657,9 @@ impl StoreEngine for Store {
             .map_while(|res| res.ok().map(|(hash, acc)| (hash.to(), acc.to())))
         {
             // Rebuild storage trie and check for mismatches
-            let rebuilt_root = self.rebuild_storage_trie_from_snapshot(hash)?;
-            if rebuilt_root != account.storage_root {
+            if let Some(hash) =
+                self.rebuild_storage_trie_from_snapshot(hash, account.storage_root)?
+            {
                 mismatched_storage_accounts.push(hash);
             }
             // Add account to trie
@@ -711,8 +712,8 @@ impl StoreEngine for Store {
             state_trie.insert(hash.to_fixed_bytes().to_vec(), account.encode_to_vec())?;
             // Commit every few iterations so we don't build the full trie in memory
             read_count += 1;
-            if  read_count > MAX_SNAPSHOT_READS {
-                break
+            if read_count > MAX_SNAPSHOT_READS {
+                break;
             }
         }
         Ok((current_hash, state_trie.hash()?, storages))
@@ -757,8 +758,13 @@ impl StoreEngine for Store {
             .map_err(StoreError::LibmdbxError)
     }
 
-    // Rebuilds the storage trie and returns its root
-    fn rebuild_storage_trie_from_snapshot(&self, account_hash: H256) -> Result<H256, StoreError> {
+    /// Rebuilds the storage trie and checks that it matches the expected root
+    /// If the root doesn't match, returns the account hash
+    fn rebuild_storage_trie_from_snapshot(
+        &self,
+        account_hash: H256,
+        expected_root: H256,
+    ) -> Result<Option<H256>, StoreError> {
         // Open a new storage trie
         let mut storage_trie = self.open_storage_trie(account_hash, *EMPTY_TRIE_HASH);
         // Add all accounts
@@ -779,7 +785,8 @@ impl StoreEngine for Store {
                 inserts_since_last_commit = 0;
             }
         }
-        Ok(storage_trie.hash()?)
+        let root = storage_trie.hash()?;
+        Ok((root != expected_root).then_some(root))
     }
 }
 

@@ -319,7 +319,11 @@ pub trait StoreEngine: Debug + Send + Sync + RefUnwindSafe {
     ) -> Result<(H256, H256, Vec<(H256, H256)>), StoreError>;
 
     // Rebuilds the storage trie and returns its root
-    fn rebuild_storage_trie_from_snapshot(&self, account_hash: H256) -> Result<H256, StoreError>;
+    fn rebuild_storage_trie_from_snapshot(
+        &self,
+        account_hash: H256,
+        expected_root: H256,
+    ) -> Result<Option<H256>, StoreError>;
 
     fn set_trie_rebuild_checkpoint(
         &self,

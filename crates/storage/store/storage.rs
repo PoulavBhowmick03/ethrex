@@ -1105,8 +1105,10 @@ impl Store {
     pub fn rebuild_storage_trie_from_snapshot(
         &self,
         account_hash: H256,
-    ) -> Result<H256, StoreError> {
-        self.engine.rebuild_storage_trie_from_snapshot(account_hash)
+        expected_root: H256,
+    ) -> Result<Option<H256>, StoreError> {
+        self.engine
+            .rebuild_storage_trie_from_snapshot(account_hash, expected_root)
     }
 
     pub fn set_trie_rebuild_checkpoint(

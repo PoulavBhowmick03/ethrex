@@ -12,6 +12,7 @@ use tokio::{
         mpsc::{self, error::SendError, Receiver, Sender},
         Mutex,
     },
+    task::JoinSet,
     time::{sleep, Duration, Instant},
 };
 use tokio_util::sync::CancellationToken;
@@ -1133,6 +1134,14 @@ async fn rebuild_state_trie_in_backgound(
     cancel_token: CancellationToken,
 ) -> Result<Vec<H256>, SyncError> {
     info!("Spawning trie rebuilder");
+    // Spawn storage rebuilder
+    let (storage_sender, storage_receiver) =
+        mpsc::channel::<Vec<(H256, H256)>>(MAX_CHANNEL_MESSAGES);
+    let storage_rebuilder_handle = tokio::task::spawn(rebuild_storage_trie_in_background(
+        store.clone(),
+        cancel_token.clone(),
+        storage_receiver,
+    ));
     // Get initial status from checkpoint if available (aka node restart)
     let checkpoint = store.get_trie_rebuild_checkpoint()?;
     let mut rebuild_status = array::from_fn(|i| SegmentStatus {
@@ -1144,7 +1153,6 @@ async fn rebuild_state_trie_in_backgound(
     info!("rebuild status: {rebuild_status:?}");
     let mut root = checkpoint.map(|(root, _)| root).unwrap_or(*EMPTY_TRIE_HASH);
     let mut current_segment = 0;
-    let mut mismatched_storage_accounts = vec![];
     let start_time = Instant::now();
     let initial_rebuild_status = rebuild_status.clone();
     let mut last_show_progress = Instant::now();
@@ -1159,7 +1167,6 @@ async fn rebuild_state_trie_in_backgound(
             ));
         }
         // Check for cancellation signal from the main node execution
-        // TODO: PERSIST MISMATCHED ACCOUNTS SOMEHOW
         if cancel_token.is_cancelled() {
             return Ok(vec![]);
         }
@@ -1180,12 +1187,7 @@ async fn rebuild_state_trie_in_backgound(
                 cancel_token.clone(),
             )?;
             // Rebuild storage tries
-            for (account_hash, expected_root) in storages {
-                let rebuilt_root = store.rebuild_storage_trie_from_snapshot(account_hash)?;
-                if rebuilt_root != expected_root {
-                    mismatched_storage_accounts.push(expected_root);
-                }
-            }
+            storage_sender.send(storages).await?;
             // Update status
             root = current_root;
             // If state_sync is complete, then mark the segment as fully rebuilt
@@ -1201,10 +1203,48 @@ async fn rebuild_state_trie_in_backgound(
         // Move on to the next segment
         current_segment = (current_segment + 1) % STATE_TRIE_SEGMENTS
     }
-    // Clear snapshot
-    store.clear_snapshot()?;
+    // Finish storage rebuilder
+    storage_sender.send(vec![]).await?;
+    // TODO: PERSIST MISMATCHED ACCOUNTS SOMEHOW
+    storage_rebuilder_handle.await?
+}
 
-    Ok(mismatched_storage_accounts)
+async fn rebuild_storage_trie_in_background(
+    store: Store,
+    cancel_token: CancellationToken,
+    mut receiver: Receiver<Vec<(H256, H256)>>,
+) -> Result<Vec<H256>, SyncError> {
+    // TODO: fetch from DB checkpoint
+    let mut pending_storages: Vec<(H256, H256)> = vec![];
+    let mut mismatched_storages: Vec<H256> = vec![];
+    let mut incoming = false;
+    while incoming && !cancel_token.is_cancelled() {
+        // Read incoming batch
+        if !receiver.is_empty() || pending_storages.is_empty() {
+            let mut buffer = vec![];
+            receiver.recv_many(&mut buffer, MAX_CHANNEL_READS).await;
+            incoming = !buffer.iter().any(|batch| batch.is_empty());
+            pending_storages.extend(buffer.iter().flatten());
+        }
+        // Spawn tasks to rebuild current storages
+        let mut rebuild_tasks = JoinSet::new();
+        for _ in 0..MAX_PARALLEL_FETCHES {
+            if pending_storages.is_empty() {
+                break;
+            }
+            let (account_hash, expected_root) = pending_storages.pop().unwrap();
+            let store = store.clone();
+            rebuild_tasks.spawn(tokio::task::spawn_blocking(move || {
+                store.rebuild_storage_trie_from_snapshot(account_hash, expected_root)
+            }));
+        }
+        for res in rebuild_tasks.join_all().await {
+            if let Some(hash) = res?? {
+                mismatched_storages.push(hash)
+            }
+        }
+    }
+    Ok(mismatched_storages)
 }
 
 async fn show_trie_rebuild_progress(
