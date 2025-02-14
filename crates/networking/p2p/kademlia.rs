@@ -338,7 +338,7 @@ impl KademliaTable {
             peer.channels.is_some() && peer.supported_capabilities.contains(&capability)
         };
         self.get_random_peer_with_filter(&filter)
-            .and_then(|peer| (peer.channels.clone(), peer.node.node_id))
+            .and_then(|peer| peer.channels.clone().map(|c| (c, peer.node.node_id)) )
     }
 }
 
