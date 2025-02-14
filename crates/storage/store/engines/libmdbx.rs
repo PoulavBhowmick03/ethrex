@@ -537,7 +537,7 @@ impl StoreEngine for Store {
         last_keys: [H256; STATE_TRIE_SEGMENTS],
     ) -> Result<(), StoreError> {
         self.write::<SnapState>(
-            SnapStateIndex::StateTrieRootCheckpoint,
+            SnapStateIndex::StateTrieKeyCheckpoint,
             last_keys.to_vec().encode_to_vec(),
         )
     }
