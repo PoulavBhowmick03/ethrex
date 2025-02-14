@@ -275,7 +275,7 @@ impl PeerHandler {
                 ) {
                     return Some((account_hashes, accounts, should_continue));
                 }
-                self.peer_table.lock().await.replace_peer(id)
+                self.peer_table.lock().await.replace_peer(id);
             }
         }
         None
