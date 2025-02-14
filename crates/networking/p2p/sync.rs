@@ -285,7 +285,7 @@ impl SyncManager {
                 info!("Looking for gaps in trie");
                 let state_trie = store.state_trie(pivot_header.compute_block_hash())?.unwrap();
                 for (hash, acc) in state_trie.into_iter().content() {
-                    let hashed_address = H256::decode(&hash)?;
+                    let hashed_address = H256::from_slice(&hash);
                     let acc = AccountState::decode(&acc).unwrap();
                     // Iter storage trie
                     info!("Checking storage");
@@ -538,6 +538,7 @@ async fn state_sync(
         stale_pivot |= is_stale;
         state_trie_checkpoint[index] = last_key;
     }
+    info!("Finished state sync!");
     // Update state trie checkpoint
     store.set_state_trie_key_checkpoint(state_trie_checkpoint)?;
     Ok(stale_pivot)
