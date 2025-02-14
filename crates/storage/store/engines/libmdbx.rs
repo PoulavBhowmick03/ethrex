@@ -596,8 +596,12 @@ impl StoreEngine for Store {
             .db
             .begin_readwrite()
             .map_err(StoreError::LibmdbxError)?;
-        txn.clear_table::<SnapState>()
-            .map_err(StoreError::LibmdbxError)?;
+        txn.delete::<SnapState>(SnapStateIndex::StateHealPaths, None).unwrap();
+        txn.delete::<SnapState>(SnapStateIndex::StateTrieKeyCheckpoint, None).unwrap();
+        txn.delete::<SnapState>(SnapStateIndex::StateTrieRebuildCheckpoint, None).unwrap();
+        txn.delete::<SnapState>(SnapStateIndex::StorageHealPaths, None).unwrap();
+        txn.delete::<SnapState>(SnapStateIndex::StorageTrieRebuildPending, None).unwrap();
+        self.clear_snapshot()?;
         txn.commit().map_err(StoreError::LibmdbxError)
     }
 
