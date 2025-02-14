@@ -184,7 +184,7 @@ async fn main() {
         import_blocks(&store, &blocks);
     }
 
-    store.clear_snap_state().unwrap();
+    // store.clear_snap_state().unwrap();
 
     if let Some(blocks_path) = matches.get_one::<String>("import_dir") {
         info!(
