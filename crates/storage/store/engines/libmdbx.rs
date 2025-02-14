@@ -601,8 +601,8 @@ impl StoreEngine for Store {
         txn.delete::<SnapState>(SnapStateIndex::StateTrieRebuildCheckpoint, None).unwrap();
         txn.delete::<SnapState>(SnapStateIndex::StorageHealPaths, None).unwrap();
         txn.delete::<SnapState>(SnapStateIndex::StorageTrieRebuildPending, None).unwrap();
-        self.clear_snapshot()?;
-        txn.commit().map_err(StoreError::LibmdbxError)
+        txn.commit().map_err(StoreError::LibmdbxError)?;
+        self.clear_snapshot()
     }
 
     fn write_snapshot_account_batch(
