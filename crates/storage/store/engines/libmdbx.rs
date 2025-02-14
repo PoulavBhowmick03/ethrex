@@ -592,15 +592,21 @@ impl StoreEngine for Store {
     }
 
     fn clear_snap_state(&self) -> Result<(), StoreError> {
+        tracing::info!("Clearing snap state");
         let txn = self
             .db
             .begin_readwrite()
             .map_err(StoreError::LibmdbxError)?;
-        txn.delete::<SnapState>(SnapStateIndex::StateHealPaths, None).unwrap();
-        txn.delete::<SnapState>(SnapStateIndex::StateTrieKeyCheckpoint, None).unwrap();
-        txn.delete::<SnapState>(SnapStateIndex::StateTrieRebuildCheckpoint, None).unwrap();
-        txn.delete::<SnapState>(SnapStateIndex::StorageHealPaths, None).unwrap();
-        txn.delete::<SnapState>(SnapStateIndex::StorageTrieRebuildPending, None).unwrap();
+        txn.delete::<SnapState>(SnapStateIndex::StateHealPaths, None)
+            .unwrap();
+        txn.delete::<SnapState>(SnapStateIndex::StateTrieKeyCheckpoint, None)
+            .unwrap();
+        txn.delete::<SnapState>(SnapStateIndex::StateTrieRebuildCheckpoint, None)
+            .unwrap();
+        txn.delete::<SnapState>(SnapStateIndex::StorageHealPaths, None)
+            .unwrap();
+        txn.delete::<SnapState>(SnapStateIndex::StorageTrieRebuildPending, None)
+            .unwrap();
         txn.commit().map_err(StoreError::LibmdbxError)?;
         self.clear_snapshot()
     }

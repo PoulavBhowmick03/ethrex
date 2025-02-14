@@ -68,7 +68,10 @@ impl PeerHandler {
         None
     }
 
-    async fn get_peer_channel_with_retry_and_id(&self, capability: Capability) -> Option<(PeerChannels, ethrex_common::H512) > {
+    async fn get_peer_channel_with_retry_and_id(
+        &self,
+        capability: Capability,
+    ) -> Option<(PeerChannels, ethrex_common::H512)> {
         for _ in 0..PEER_SELECT_RETRY_ATTEMPTS {
             let table = self.peer_table.lock().await;
             if let Some(channels) = table.get_peer_channels_and_node_id(capability.clone()) {
@@ -101,7 +104,9 @@ impl PeerHandler {
                 skip: 0,
                 reverse: matches!(order, BlockRequestOrder::NewToOld),
             });
-            let (peer, id) = self.get_peer_channel_with_retry_and_id(Capability::Eth).await?;
+            let (peer, id) = self
+                .get_peer_channel_with_retry_and_id(Capability::Eth)
+                .await?;
             let mut receiver = peer.receiver.lock().await;
             peer.sender.send(request).await.ok()?;
             if let Some(block_headers) = tokio::time::timeout(PEER_REPLY_TIMOUT, async move {
@@ -235,7 +240,9 @@ impl PeerHandler {
                 limit_hash: limit,
                 response_bytes: MAX_RESPONSE_BYTES,
             });
-            let (peer, id) = self.get_peer_channel_with_retry_and_id(Capability::Snap).await?;
+            let (peer, id) = self
+                .get_peer_channel_with_retry_and_id(Capability::Snap)
+                .await?;
             let mut receiver = peer.receiver.lock().await;
             peer.sender.send(request).await.ok()?;
             if let Some((accounts, proof)) = tokio::time::timeout(PEER_REPLY_TIMOUT, async move {

@@ -289,7 +289,8 @@ impl SyncManager {
                     let acc = AccountState::decode(&acc).unwrap();
                     // Iter storage trie
                     if acc.storage_root != *EMPTY_TRIE_HASH {
-                        let storage_trie = store.open_storage_trie(hashed_address, acc.storage_root);
+                        let storage_trie =
+                            store.open_storage_trie(hashed_address, acc.storage_root);
                         let storage = storage_trie.into_iter().collect::<Vec<_>>();
                         info!("Healthy storage trie of len: {}", storage.len())
                     }
@@ -439,6 +440,7 @@ impl SyncManager {
         // Perform state sync if it was not already completed on a previous cycle
         // Retrieve storage data to check which snap sync phase we are in
         let key_checkpoints = store.get_state_trie_key_checkpoint()?;
+        info!("Key checkpoints {key_checkpoints:?}");
         // If we have no key checkpoints or if the key checkpoints are lower than the segment boundaries we are in state sync phase
         if key_checkpoints.is_none()
             || key_checkpoints.is_some_and(|ch| {
@@ -796,8 +798,8 @@ async fn storage_fetcher(
     );
     if !pending_storage.is_empty() {
         storage_healer_sender
-        .send(pending_storage.into_iter().map(|(hash, _)| hash).collect())
-        .await?;
+            .send(pending_storage.into_iter().map(|(hash, _)| hash).collect())
+            .await?;
     }
     Ok(())
 }
@@ -1465,8 +1467,10 @@ impl StateSyncProgress {
                 data.current_keys[i].into_uint(),
                 data.initial_keys[i].into_uint()
             );
-            synced_accounts_this_cycle +=
-                data.current_keys[i].into_uint().checked_sub(data.initial_keys[i].into_uint()).unwrap_or_default();
+            synced_accounts_this_cycle += data.current_keys[i]
+                .into_uint()
+                .checked_sub(data.initial_keys[i].into_uint())
+                .unwrap_or_default();
         }
         // Calculate current progress percentage
         let completion_rate: U512 = (U512::from(synced_accounts) * 100) / U512::from(U256::MAX);
