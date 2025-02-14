@@ -1212,7 +1212,6 @@ async fn rebuild_state_trie_in_backgound(
     let initial_rebuild_status = rebuild_status.clone();
     let mut last_show_progress = Instant::now();
     while !rebuild_status.iter().all(|status| status.complete()) {
-        info!("Trie rebuild status: {rebuild_status:?}");
         // Show Progress stats (this task is not vital so we can detach it)
         if Instant::now().duration_since(last_show_progress) >= SHOW_PROGRESS_INTERVAL_DURATION {
             last_show_progress = Instant::now();
@@ -1283,9 +1282,10 @@ async fn rebuild_state_trie_segment(
         root = state_trie.hash()?;
         // Return if we have no more snapshot accounts to process for this segemnt
         if unfilled_batch {
-            let a = store
-            .get_state_trie_key_checkpoint()?;
+            if let Some(a) = store
+            .get_state_trie_key_checkpoint()? {
             info!("State trie key checkpoint: {a:?}");
+            }
             let state_sync_complete = store
                 .get_state_trie_key_checkpoint()?
                 .is_some_and(|ch| ch[segment_number] == STATE_TRIE_SEGMENTS_END[segment_number]);
