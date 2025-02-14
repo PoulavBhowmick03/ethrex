@@ -331,6 +331,15 @@ impl KademliaTable {
         self.get_random_peer_with_filter(&filter)
             .and_then(|peer| peer.channels.clone())
     }
+
+    pub fn get_peer_channels_and_node_id(&self, capability: Capability) -> Option<(PeerChannels, H512)> {
+        let filter = |peer: &PeerData| -> bool {
+            // Search for peers with an active connection that support the required capabilities
+            peer.channels.is_some() && peer.supported_capabilities.contains(&capability)
+        };
+        self.get_random_peer_with_filter(&filter)
+            .and_then(|peer| (peer.channels.clone(), peer.node.node_id))
+    }
 }
 
 /// Computes the distance between two nodes according to the discv4 protocol

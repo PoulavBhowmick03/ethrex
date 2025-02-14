@@ -68,6 +68,21 @@ impl PeerHandler {
         None
     }
 
+    async fn get_peer_channel_with_retry_and_id(&self, capability: Capability) -> Option<(PeerChannels, ethrex_common::H512) > {
+        for _ in 0..PEER_SELECT_RETRY_ATTEMPTS {
+            let table = self.peer_table.lock().await;
+            if let Some(channels) = table.get_peer_channels_and_node_id(capability.clone()) {
+                return Some(channels);
+            };
+            // drop the lock early to no block the rest of processes
+            drop(table);
+            info!("[Sync] No peers available, retrying in 10 sec");
+            // This is the unlikely case where we just started the node and don't have peers, wait a bit and try again
+            tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+        }
+        None
+    }
+
     /// Requests block headers from any suitable peer, starting from the `start` block hash towards either older or newer blocks depending on the order
     /// Returns the block headers or None if:
     /// - There are no available peers (the node just started up or was rejected by all other nodes)
@@ -86,7 +101,7 @@ impl PeerHandler {
                 skip: 0,
                 reverse: matches!(order, BlockRequestOrder::NewToOld),
             });
-            let peer = self.get_peer_channel_with_retry(Capability::Eth).await?;
+            let (peer, id) = self.get_peer_channel_with_retry_and_id(Capability::Eth).await?;
             let mut receiver = peer.receiver.lock().await;
             peer.sender.send(request).await.ok()?;
             if let Some(block_headers) = tokio::time::timeout(PEER_REPLY_TIMOUT, async move {
@@ -110,6 +125,7 @@ impl PeerHandler {
             {
                 return Some(block_headers);
             }
+            self.peer_table.lock().await.replace_peer(id);
         }
         None
     }
@@ -219,7 +235,7 @@ impl PeerHandler {
                 limit_hash: limit,
                 response_bytes: MAX_RESPONSE_BYTES,
             });
-            let peer = self.get_peer_channel_with_retry(Capability::Snap).await?;
+            let (peer, id) = self.get_peer_channel_with_retry_and_id(Capability::Snap).await?;
             let mut receiver = peer.receiver.lock().await;
             peer.sender.send(request).await.ok()?;
             if let Some((accounts, proof)) = tokio::time::timeout(PEER_REPLY_TIMOUT, async move {
@@ -259,6 +275,7 @@ impl PeerHandler {
                 ) {
                     return Some((account_hashes, accounts, should_continue));
                 }
+                self.peer_table.lock().await.replace_peer(id)
             }
         }
         None
