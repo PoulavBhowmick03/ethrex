@@ -1460,6 +1460,11 @@ impl StateSyncProgress {
                 / U512::from(U256::MAX / STATE_TRIE_SEGMENTS);
             info!("Segment {i} completion rate: {segment_completion_rate}%");
             synced_accounts += segment_synced_accounts;
+            info!(
+                "Segment synced accounts this cycle = {} - {}",
+                data.current_keys[i].into_uint(),
+                data.initial_keys[i].into_uint()
+            );
             synced_accounts_this_cycle +=
                 data.current_keys[i].into_uint() - data.initial_keys[i].into_uint();
         }
