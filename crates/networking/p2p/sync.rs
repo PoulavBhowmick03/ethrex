@@ -1447,9 +1447,15 @@ impl StateSyncProgress {
         // Calculate the total amount of accounts synced this cycle
         let mut synced_accounts_this_cycle = U256::one();
         for i in 0..STATE_TRIE_SEGMENTS {
-            info!("Segment synced accounts = {} - {}", data.current_keys[i].into_uint(), STATE_TRIE_SEGMENTS_START[i].into_uint());
-            let segment_synced_accounts =
-                data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
+            info!(
+                "Segment synced accounts = {} - {}",
+                data.current_keys[i].into_uint(),
+                STATE_TRIE_SEGMENTS_START[i].into_uint()
+            );
+            let segment_synced_accounts = data.current_keys[i]
+                .into_uint()
+                .checked_sub(STATE_TRIE_SEGMENTS_START[i].into_uint())
+                .unwrap_or_default();
             let segment_completion_rate = (U512::from(segment_synced_accounts + 1) * 100)
                 / U512::from(U256::MAX / STATE_TRIE_SEGMENTS);
             info!("Segment {i} completion rate: {segment_completion_rate}%");
