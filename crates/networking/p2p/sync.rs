@@ -199,7 +199,7 @@ impl SyncManager {
                 .await
             {
                 Some(mut block_headers) => {
-                    debug!(
+                    info!(
                         "Received {} block headers| Last Number: {}",
                         block_headers.len(),
                         block_headers.last().as_ref().unwrap().number
@@ -260,7 +260,7 @@ impl SyncManager {
                 let pivot_header = store
                     .get_block_header_by_hash(all_block_hashes[pivot_idx])?
                     .ok_or(SyncError::CorruptDB)?;
-                debug!(
+                info!(
                     "Selected block {} as pivot for snap sync",
                     pivot_header.number
                 );
@@ -315,7 +315,7 @@ async fn download_and_run_blocks(
         debug!("Requesting Block Bodies ");
         if let Some(block_bodies) = peers.request_block_bodies(block_hashes.clone()).await {
             let block_bodies_len = block_bodies.len();
-            debug!("Received {} Block Bodies", block_bodies_len);
+            info!("Received {} Block Bodies", block_bodies_len);
             // Execute and store blocks
             for (hash, body) in block_hashes
                 .drain(..block_bodies_len)
@@ -644,7 +644,7 @@ async fn state_sync_segment(
             break;
         }
     }
-    debug!("[Segment {segment_number}]: Account Trie Fetching ended, signaling storage & bytecode fetcher process");
+    info!("[Segment {segment_number}]: Account Trie Fetching ended, signaling storage & bytecode fetcher process");
     // Update sync progress (this task is not vital so we can detach it)
     tokio::task::spawn(StateSyncProgress::end_segment(
         state_sync_progress.clone(),
@@ -776,7 +776,7 @@ async fn storage_fetcher(
             }
         }
     }
-    debug!(
+    info!(
         "Concluding storage fetcher, {} storages left in queue to be healed later",
         pending_storage.len()
     );
@@ -958,10 +958,10 @@ async fn heal_state_trie(
             break;
         }
     }
-    debug!("State Healing stopped, signaling storage healer");
+    info!("State Healing stopped, signaling storage healer");
     // Save paths for the next cycle
     if !paths.is_empty() {
-        debug!("Caching {} paths for the next cycle", paths.len());
+        info!("Caching {} paths for the next cycle", paths.len());
         store.set_state_heal_paths(paths.clone())?;
     }
     // Send empty batch to signal that no more batches are incoming
@@ -1127,7 +1127,7 @@ async fn heal_storage_batch(
         .request_storage_trienodes(state_root, batch.clone())
         .await
     {
-        debug!("Received {} storage nodes", nodes.len());
+        info!("Received {} storage nodes", nodes.len());
         // Process the nodes for each account path
         for (acc_path, paths) in batch.iter_mut() {
             let mut trie = store.open_storage_trie(*acc_path, *EMPTY_TRIE_HASH);
@@ -1452,7 +1452,7 @@ impl StateSyncProgress {
                 data.current_keys[i].into_uint() - STATE_TRIE_SEGMENTS_START[i].into_uint();
             let segment_completion_rate = (U512::from(segment_synced_accounts + 1) * 100)
                 / U512::from(U256::MAX / STATE_TRIE_SEGMENTS);
-            debug!("Segment {i} completion rate: {segment_completion_rate}%");
+            info!("Segment {i} completion rate: {segment_completion_rate}%");
             synced_accounts += segment_synced_accounts;
             synced_accounts_this_cycle +=
                 data.current_keys[i].into_uint() - data.initial_keys[i].into_uint();
