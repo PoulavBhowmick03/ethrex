@@ -1,4 +1,3 @@
-use ethrex_blockchain::add_block;
 use ethrex_blockchain::error::ChainError;
 use ethrex_blockchain::payload::build_payload;
 use ethrex_common::types::{BlobsBundle, Block, BlockBody, BlockHash, BlockNumber, Fork};
@@ -427,7 +426,10 @@ fn execute_payload(block: &Block, context: &RpcApiContext) -> Result<PayloadStat
         };
     };
 
-    match add_block(block, storage) {
+    match ethrex_blockchain::Blockchain::get_instance()
+        .unwrap()
+        .add_block(&block, storage)
+    {
         Err(ChainError::ParentNotFound) => Ok(PayloadStatus::syncing()),
         // Under the current implementation this is not possible: we always calculate the state
         // transition of any new payload as long as the parent is present. If we received the

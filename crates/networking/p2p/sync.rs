@@ -6,7 +6,7 @@ mod storage_healing;
 mod trie_rebuild;
 
 use bytecode_fetcher::bytecode_fetcher;
-use ethrex_blockchain::error::ChainError;
+use ethrex_blockchain::{error::ChainError, Blockchain};
 use ethrex_common::{
     types::{Block, BlockHash},
     BigEndianHash, H256, U256, U512,
@@ -276,7 +276,9 @@ impl SyncManager {
                     let block = store
                         .get_block_by_hash(*hash)?
                         .ok_or(SyncError::CorruptDB)?;
-                    ethrex_blockchain::add_block(&block, &store)?;
+                    Blockchain::get_instance()
+                        .unwrap()
+                        .add_block(&block, &store)?;
                     store.set_canonical_block(block.header.number, *hash)?;
                     store.update_latest_block_number(block.header.number)?;
                 }
@@ -325,7 +327,10 @@ async fn download_and_run_blocks(
                     .ok_or(SyncError::CorruptDB)?;
                 let number = header.number;
                 let block = Block::new(header, body);
-                if let Err(error) = ethrex_blockchain::add_block(&block, &store) {
+                if let Err(error) = Blockchain::get_instance()
+                    .unwrap()
+                    .add_block(&block, &store)
+                {
                     invalid_ancestors.insert(hash, last_valid_hash);
                     return Err(error.into());
                 }

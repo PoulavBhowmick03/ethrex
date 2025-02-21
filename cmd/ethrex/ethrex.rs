@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use directories::ProjectDirs;
-use ethrex_blockchain::{add_block, fork_choice::apply_fork_choice};
+use ethrex_blockchain::{fork_choice::apply_fork_choice, Blockchain};
 use ethrex_common::types::{Block, Genesis};
 use ethrex_p2p::{
     kademlia::KademliaTable,
@@ -427,7 +427,7 @@ fn import_blocks(store: &Store, blocks: &Vec<Block>) {
             "Adding block {} with hash {:#x}.",
             block.header.number, hash
         );
-        let result = add_block(block, store);
+        let result = Blockchain::get_instance().unwrap().add_block(block, store);
         if let Some(error) = result.err() {
             warn!(
                 "Failed to add block {} with hash {:#x}: {}.",
