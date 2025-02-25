@@ -45,7 +45,7 @@ const CAP_ETH_68: (Capability, u8) = (Capability::Eth, 68);
 const CAP_SNAP_1: (Capability, u8) = (Capability::Snap, 1);
 const SUPPORTED_CAPABILITIES: [(Capability, u8); 3] = [CAP_P2P_5, CAP_ETH_68, CAP_SNAP_1];
 const PERIODIC_TASKS_CHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(15);
-pub const MAX_PEERS_TCP_CONNECTIONS: usize = 10;
+pub const MAX_PEERS_TCP_CONNECTIONS: usize = 100;
 
 pub(crate) type Aes256Ctr64BE = ctr::Ctr64BE<aes::Aes256>;
 
@@ -203,10 +203,6 @@ impl<S: AsyncWrite + AsyncRead + std::marker::Unpin> RLPxConnection<S> {
             RLPxError::DisconnectRequested(DisconnectReason::AlreadyConnected)
             | RLPxError::DisconnectSent(DisconnectReason::AlreadyConnected) => {
                 log_peer_debug(&self.node, "Peer already connected, don't replace it");
-            }
-            // Too many peers, even if we replace it we will keep on disconnecting to peers.
-            RLPxError::DisconnectSent(DisconnectReason::TooManyPeers) => {
-                log_peer_debug(&self.node, "Too many peers sent, don't replace peer");
             }
             _ => {
                 let remote_node_id = self.node.node_id;
